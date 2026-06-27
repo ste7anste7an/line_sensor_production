@@ -1,0 +1,81 @@
+# Line tracking sensor test protocol
+
+## Objective
+
+The tests confirm that these components are properlyworking:
+
+- USB connector
+- 2× Qwiic connectors
+- 2×3 UART connector
+- 9 RGB LEDs
+- 2 buttons
+- 8 IR sensors
+  - emitters
+  - detectors
+
+## General overview test
+The test will be performed by a firmware residing on the LMS-ESP32v2. This MCU communicates through I2C with two Line Sensor boards. One Line Sensor board, called the Test Unit (**TU**), will be used in all tests. 
+Each test is performed on a Device Under Test (DUT) which is first flash with the production firmware and is then connected with one QWIIC port to the TU and with the other QWIIC port to the LMS-ESP32. 
+By mounting the Line Sensor boards in opposite directions, the emitters of the TU can be used to test the IR sensors of the DUT and the IR sensors of the TU will be used to test the IR emitters of the DUT.
+
+## Preparation (set up once)
+
+1. Download [WCHIPTool](https://www.wch-ic.com/downloads/WCHISPTool_Setup_exe.html)
+2. Download firmware for : `CH32_line_sensor_i2c_TU.bin` and `CH32_line_sensor_i2c.bin`
+1. Flash **TU** (test unit — one line-sensor board used for all tests) with `CH32_line_sensor_i2c_TU.bin`
+  a. connect TU board with USB to PC
+  b. Start WCHISPtool and open  `CH32_line_sensor_i2c_TU.bin`
+  c. While holding BOOT/CAL button press RESET button on TU
+  d. The USB device should show up in WCHISPtool
+  e. Download the firmware
+3. Flash LMS-ESP32 with `ESP32_line_sensor_test.bin` starting at `0x0` using esptool.
+4. Prepare a 10kOhm resistor connected to two female DuPont cables
+  
+
+## Test procedure for each DUT (device under test)
+
+### USB + buttons
+
+1. Connect DUT with USB to PC
+2. Start WCHIPTool
+3. Keep BOOT button pressed while pressing RESET button
+4. USB device should appear in WCHIPTool (buttons and USB work)
+5. Flash firmware `CH32_line_sensor_i2c.bin`
+6. Check first 8 RGB LEDs scanning 3 times in different collors (confirms RGB blue LEDs work)
+7. Press BOOT/CAL button — CALIBRATE LED (9th) should start flashing BLUE and turns GREEN after a few seconds
+8. Disconnect USB
+
+
+### setup
+
+<img width="399" height="719" alt="image" src="https://github.com/user-attachments/assets/719b527f-22d9-48b5-b40f-0e8fd8cc6fba" />
+
+<img width="388" height="708" alt="image" src="https://github.com/user-attachments/assets/d0b1b04b-ba82-4627-b37a-5666063c32f0" />
+
+<img width="398" height="320" alt="image" src="https://github.com/user-attachments/assets/c037cad7-a78e-4df0-9eba-105b650a4adb" />
+
+<img width="388" height="366" alt="image" src="https://github.com/user-attachments/assets/02d6a105-3075-4814-98e7-9d9b0a2f02b1" />
+
+
+### Sensor testing + Qwiic connectors
+
+1. Connect one QWIIC port of DUT to LMS-ESP32 using Qwiic cable
+2. Connect other QWIIC port of DUT to TU using Qwiic cable
+3. Mount DUT mirror opposite to TU as indicated in the picture
+4. Connect LMS-ESP32 with USB to serial monitor
+5. Press RESET on LMS-ESP32 and log serial output (115200 kbit/s)
+6. First Green LED S1: QWIIC cables OK
+7. Second GreenGreen flashing on all LEDs of DUT — OK (confirms emitters, detectors, and Qwiic are working)
+8. Red flashing on all LEDs of TU — error in test; check serial log output and troubleshoot
+  > **Open:** Should this be TU, DUT, or both?
+
+### 2×3 UART connector test
+
+1. Disconnect Qwiic
+2. Connect 2×3 UART of LMS-ESP32 to 2×3 of DUT (straight flat cable)
+3. On TX high, verify LEDs are on and RX toggles up/down every 20 ms (confirms 2×3 GND, 3V, RX, TX)
+4. Red flashing on all LEDs of TU — error in test; check serial log output and troubleshoot
+
+### Pacakaging
+
+- Ensure jst-sh4 20cm straight included in sku
