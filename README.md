@@ -8,6 +8,7 @@
 - connect TU to DUT using QWIIC
 - connect DUT to LMS-ESP32v2 using QWICC
 - attach DUT opposite to UT with sensors pointing towards each other using spacers of approx. 10mm
+- connect 10kOhm restistor between RX and TX pins of DUT
 - connect LMS-ESP32v2 using USB to a Serial Terminal and log output
 - press reset on LMS-ESP32 and check for Red, Green, Blue scanning of LEDS on TUD
 - when test is correctly performces, 3 green neopixels at S1, S2 and S3 are shown
