@@ -42,7 +42,7 @@ By mounting the two Line Sensor boards (DUT and TU) in opposite directions, the 
 3. Keep BOOT button pressed while pressing RESET button
 4. USB device should appear in WCHIPTool (buttons and USB work)
 5. Flash firmware `CH32_production_line_sensor_i2c.bin`
-6. Check first 8 RGB LEDs scanning 3 times in different collors (confirms RGB blue LEDs work)
+6. Check first 8 RGB LEDs scanning 3 times in different collors (confirms RGB LEDs work)
 7. Press BOOT/CAL button — CALIBRATE LED (9th) should start flashing BLUE and turns GREEN after a few seconds
 8. Use a voltage meter to measure the coltage betweenGND and 3V3 on the 2x3 header. The voltage should be 3V3. (voltage regulator and pins 2x3 header work) 
 9. Disconnect USB
