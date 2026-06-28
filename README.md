@@ -25,7 +25,7 @@ Repeat the following steps for every new Device Under Test (DUT):
 7. Press **RESET** on the LMS-ESP32v2.
 8. Verify that the DUT LEDs perform a red, green, and blue scan.
 9. Verify that status LEDs **S1**, **S2**, and **S3** all turn green.
-10. If any status LED turns red, or no LEDS are lit after a few seconds, the DUT has failed. Begin troubleshooting.
+10. If any status LED turns red, or the NeoPixel on the LMS-ESP32 light RED, the DUT has failed. Begin troubleshooting.
 11. Disconnect the DUT and continue with the next board.
 
 
@@ -157,10 +157,14 @@ Connect the **10 kÎ© resistor** between the **TX** and **RX** pins on the DUT 2Ã
 
 Expected results:
 
-| Status LED   | Meaning                          |
-| ------------ | -------------------------------- |
-| **S1 Green** | Qwiic communication passed       |
-| **S2 Green** | UART TX/RX loopback passed       |
-| **S3 Green** | IR emitters and receivers passed |
+| Status LED    | Meaning                          |
+| ------------- | -------------------------------- |
+| **S1 Green**  | Qwiic communication passed       |
+| **S2 Green**  | UART TX/RX loopback passed       |
+| **S3 Green**  | IR emitters and receivers passed |
+| **LED LMS-ESP32** |                                  |
+| **Green**     |  All tests succesfull            |
+| **Blinking RED** | I2C failure, check QWICC cables  |
+| **RED**       | One of the tests failed          |
 
 If any status LED turns red, the corresponding test has failed and the DUT should be investigated.
