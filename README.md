@@ -1,8 +1,22 @@
 # Line tracking sensor test protocol
 
+## Summary
+
+- flash `CH32_TU_line_sensor_i2c_0x34.bin` to Line Sensor test Unit (TU)
+- flash `CH32_production_line_sensor_i2c.bin` to every new Line Sensor (DUT)
+- flash `ESP32_line_sensor_test.bin` to an LMS-ESP32v2
+- connect TU to DUT using QWIIC
+- connect DUT to LMS-ESP32v2 using QWICC
+- attach DUT opposite to UT with sensors pointing towards each other using spacers of approx. 10mm
+- connect LMS-ESP32v2 using USB to a Serial Terminal and log output
+- press reset on LMS-ESP32 and check for Red, Green, Blue scanning of LEDS on TUD
+- when test is correctly performces, 3 green neopixels at S1, S2 and S3 are shown
+- disconnect DUT and prepare new DUT.
+- restart new test
+  
 ## Objective
 
-The tests confirm that these components are properlyworking:
+The tests confirm that these components are properly working:
 
 - USB connector
 - 2× Qwiic connectors
