@@ -2,21 +2,32 @@
 
 ## Summary
 
-For each production test:
+### One-time setup
+
+Perform these steps once before testing a batch of DUTs:
 
 * Flash `CH32_TU_line_sensor_i2c_0x34.bin` to the **Test Unit (TU)**.
-* Flash `CH32_production_line_sensor_i2c.bin` to each **Device Under Test (DUT)**.
 * Flash `ESP32_line_sensor_test.bin` to the **LMS-ESP32v2**.
-* Connect the TU to the DUT using a Qwiic cable.
-* Connect the DUT to the LMS-ESP32v2 using a second Qwiic cable.
-* Mount the DUT opposite the TU so that the IR sensors face each other, using spacers to maintain a distance of approximately 10 mm.
-* Connect a **10 kΩ resistor** between the **TX** and **RX** pins on the DUT.
-* Connect the LMS-ESP32v2 to a PC via USB and open a serial terminal.
-* Press **RESET** on the LMS-ESP32v2.
-* Verify that the DUT LEDs perform a red, green, and blue scan.
-* If the test passes, status LEDs **S1**, **S2**, and **S3** turn green.
-* If any status LED turns red, the test has failed. Begin troubleshooting.
-* Disconnect the DUT and repeat the procedure with the next DUT.
+* Prepare a **10 kΩ resistor** with two female DuPont connectors.
+* Connect the TU to the LMS-ESP32v2 test setup.
+
+### For each DUT
+
+Repeat the following steps for every new Device Under Test (DUT):
+
+1. Flash `CH32_production_line_sensor_i2c.bin` to the DUT.
+2. Verify USB operation, buttons, RGB LEDs, and the 3.3 V supply.
+3. Mount the DUT opposite the TU with the IR sensors facing each other (approximately 10 mm spacing).
+4. Connect one Qwiic connector of the DUT to the LMS-ESP32v2.
+5. Connect the second Qwiic connector of the DUT to the TU.
+6. Connect the **10 kΩ resistor** between the DUT **TX** and **RX** pins.
+7. Connect the LMS-ESP32v2 to a PC via USB and open a serial terminal.
+8. Press **RESET** on the LMS-ESP32v2.
+9. Verify that the DUT LEDs perform a red, green, and blue scan.
+10. Verify that status LEDs **S1**, **S2**, and **S3** all turn green.
+11. If any status LED turns red, the DUT has failed. Begin troubleshooting.
+12. Disconnect the DUT and continue with the next board.
+
 
 ---
 
