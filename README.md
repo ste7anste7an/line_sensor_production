@@ -21,10 +21,10 @@ By mounting the Line Sensor boards in opposite directions, the emitters of the T
 ## Preparation (set up once)
 
 1. Download [WCHIPTool](https://www.wch-ic.com/downloads/WCHISPTool_Setup_exe.html)
-2. Download firmware from this repository: `CH32_line_sensor_i2c_TU.bin` and `CH32_line_sensor_i2c.bin`
-1. Flash **TU** (test unit — one line-sensor board used for all tests) with `CH32_line_sensor_i2c_TU.bin`
+2. Download firmware from this repository: `CH32_TU_line_sensor_i2c_0x34.bin` and `CH32_production_line_sensor_i2c.bin`
+1. Flash **TU** (test unit — one line-sensor board used for all tests) with `CH32_TU_line_sensor_i2c_0x34.bin`
   a. connect TU board with USB to PC
-  b. Start WCHISPtool and open  `CH32_line_sensor_i2c_TU.bin`
+  b. Start WCHISPtool and open  `CH32_TU_line_sensor_i2c_0x34.bin`
   c. While holding BOOT/CAL button press RESET button on TU
   d. The USB device should show up in WCHISPtool
   e. Download the firmware
@@ -41,7 +41,7 @@ By mounting the Line Sensor boards in opposite directions, the emitters of the T
 2. Start WCHIPTool
 3. Keep BOOT button pressed while pressing RESET button
 4. USB device should appear in WCHIPTool (buttons and USB work)
-5. Flash firmware `CH32_line_sensor_i2c.bin`
+5. Flash firmware `CH32_production_line_sensor_i2c.bin`
 6. Check first 8 RGB LEDs scanning 3 times in different collors (confirms RGB blue LEDs work)
 7. Press BOOT/CAL button — CALIBRATE LED (9th) should start flashing BLUE and turns GREEN after a few seconds
 8. Use a voltage meter to measure the coltage betweenGND and 3V3 on the 2x3 header. The voltage should be 3V3. (voltage regulator and pins 2x3 header work) 
