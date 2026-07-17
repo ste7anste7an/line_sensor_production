@@ -135,14 +135,23 @@ This verifies the complete IR sensing system without requiring external test equ
 After both boards have been programmed:
 
 * Mount the DUT opposite the TU with the IR sensors facing each other.
+
+<img width="225" height="400" alt="20260627_211301" src="https://github.com/user-attachments/assets/228e9807-024e-4ac5-8a2f-873bc72233c0" />
+<img width="225" height="400" alt="20260627_211227" src="https://github.com/user-attachments/assets/682e2c71-6a34-4832-bf7a-79f8d26ec42e" />
+  
 * Maintain a spacing of approximately **10 mm** using spacers.
 
-*(Insert mounting image here.)*
+<img width="225" height="400" alt="20260627_211209" src="https://github.com/user-attachments/assets/f43cc092-ce49-45f6-bc74-8b573485fbc3" />
 
-Connect the **10 kΩ resistor** between the **TX** and **RX** pins on the DUT 2×3 header.
+* Connect the **10 kΩ resistor** between the **TX** and **RX** pins on the DUT 2×3 header.
 
-*(Insert resistor connection images here.)*
+<img width="225" height="400" alt="20260627_211326" src="https://github.com/user-attachments/assets/e47b767d-6e88-45d0-b3ff-f3e1a9b9b7be" />
 
+* Connect the DUT to the LMS ESP32
+
+<img width="225" height="400" alt="20260627_211508" src="https://github.com/user-attachments/assets/ae51ee89-0f90-489f-9c91-3702ed0e8fe7" />
+
+  
 ---
 
 ## 3. Sensor Test and Qwiic Connectors
