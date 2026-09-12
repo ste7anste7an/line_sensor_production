@@ -1,14 +1,172 @@
 from time import sleep, ticks_ms, ticks_diff, sleep_ms
 from line_sensor import LineSensorI2C
 import lms_esp32
-from machine import Pin, UART
+import os
+import sys
+import uselect
+from machine import I2C, Pin, UART
 from neopixel import NeoPixel
 
-np=NeoPixel(Pin(25),1)
-ALL_OK = True
-uart=UART(1,rx=lms_esp32.RX_PIN,tx=lms_esp32.TX_PIN,baudrate=115200)
-dut = LineSensorI2C(device_addr=0x33, freq=100000)
-tu = LineSensorI2C(device_addr=0x34, freq=100000)
+# test program for firmware 5.6
+
+LOG_FILENAME = "test_log.txt"
+LOG_READY = "LMS_LOG_READY"
+LOG_REQUEST = "DOWNLOAD_LOG"
+LOG_DELETE_REQUEST = "DELETE_LOG"
+LOG_BEGIN = "LMS_LOG_BEGIN"
+LOG_END = "LMS_LOG_END"
+LOG_DELETED = "LMS_LOG_DELETED"
+LOG_DELETE_ERROR = "LMS_LOG_DELETE_ERROR"
+LOG_REQUEST_TIMEOUT_MS = 1000
+
+
+def wait_for_log_command(timeout_ms=None, announce=False):
+    """Wait for a download or delete command from the USB serial console."""
+    poller = uselect.poll()
+    poller.register(sys.stdin, uselect.POLLIN)
+    command = ""
+    start = ticks_ms()
+    last_ready = start
+
+    if announce:
+        print(LOG_READY)
+
+    while timeout_ms is None or ticks_diff(ticks_ms(), start) < timeout_ms:
+        now = ticks_ms()
+        if announce and ticks_diff(now, last_ready) >= 500:
+            print(LOG_READY)
+            last_ready = now
+
+        if not poller.poll(50):
+            continue
+
+        character = sys.stdin.read(1)
+        if character == "\r" or character == "\n":
+            if command == LOG_REQUEST or command == LOG_DELETE_REQUEST:
+                return command
+            command = ""
+        elif character:
+            command = (command + character)[-64:]
+
+    return None
+
+
+def send_log():
+    """Send the complete text log using line-based serial framing."""
+    print(LOG_BEGIN)
+    needs_newline = False
+    try:
+        log_file = open(LOG_FILENAME, "r")
+    except OSError:
+        log_file = None
+
+    if log_file is not None:
+        try:
+            while True:
+                chunk = log_file.read(128)
+                if not chunk:
+                    break
+                sys.stdout.write(chunk)
+                needs_newline = chunk[-1] != "\n"
+        finally:
+            log_file.close()
+
+    if needs_newline:
+        print("")
+    print(LOG_END)
+
+
+def delete_log():
+    """Delete the stored test log and report the result over USB serial."""
+    try:
+        os.remove(LOG_FILENAME)
+    except OSError as error:
+        print(LOG_DELETE_ERROR, error)
+        return False
+
+    print(LOG_DELETED)
+    return True
+
+
+def service_log_requests():
+    """Enter log-service mode when the browser responds during startup."""
+    command = wait_for_log_command(LOG_REQUEST_TIMEOUT_MS, announce=True)
+    if command is None:
+        return False
+
+    while True:
+        if command == LOG_REQUEST:
+            send_log()
+        elif command == LOG_DELETE_REQUEST:
+            delete_log()
+        command = wait_for_log_command()
+
+
+class TestLogger:
+    """Report over USB UART and keep a best-effort backup on flash."""
+
+    def __init__(self, filename):
+        try:
+            self.file = open(filename, "a")
+        except OSError as error:
+            self.file = None
+            print("[!] Test log backup unavailable:", error)
+
+    def print(self, *values):
+        line = " ".join(str(value) for value in values)
+
+        # stdout is the USB serial console and is the primary test report.
+        print(line)
+
+        if self.file is not None:
+            try:
+                self.file.write(line + "\n")
+                self.file.flush()
+            except OSError as error:
+                failed_file = self.file
+                self.file = None
+                try:
+                    failed_file.close()
+                except OSError:
+                    pass
+                print("[!] Test log backup failed:", error)
+
+class ProductionTest:
+    DUT_ADDRESS = 0x33
+    TU_ADDRESS = 0x34
+    dut = None
+    tu = None
+
+    def __init__(self):
+        self.logger = TestLogger(LOG_FILENAME)
+        self.np = NeoPixel(Pin(25), 1)
+        self.uart = UART(
+            1,
+            rx=lms_esp32.RX_PIN,
+            tx=lms_esp32.TX_PIN,
+            baudrate=115200,
+        )
+        self.i2c = I2C(1, scl=Pin(4), sda=Pin(5), freq=100000)
+
+    def report(self, *values):
+        self.logger.print(*values)
+
+    def check_i2c(self):
+        devices = self.i2c.scan()
+        self.report("[.] check i2c devices")
+        self.report("[*] devices found: ", devices)
+        ok = True
+        if self.DUT_ADDRESS not in devices:
+            self.report("[!] Check I2C connection of DUT")
+            ok = False
+        if self.TU_ADDRESS not in devices:
+            self.report("[!] Check I2C connection of TU")
+            ok = False
+        return ok
+
+    def initialize_devices(self):
+        self.dut = LineSensorI2C(device_addr=self.DUT_ADDRESS, freq=100000)
+        self.tu = LineSensorI2C(device_addr=self.TU_ADDRESS, freq=100000)
 
 N_MEASURE = 10
 """
@@ -23,59 +181,36 @@ N_MEASURE = 10
 """
 
 def get_uid():
-    uid = dut.get_uid()[:23]
-    print("[*] line Sensor UID: ", uid)
-    uid = tu.get_uid()[:23]
-    print("[*] line Sensor UID: ", uid)
-
-def check_i2c():
-    devices = dut.i2c.scan()
-    print("[.] check i2c devices")
-    print("[*] devices found: ",devices)
-    OK = True
-    if not 0x33 in devices:
-        print("[!] Check I2C connection of DUT")
-        OK = False
-    if not 0x34 in devices:
-        print("[!] Check I2C connection of TU")
-        OK = False
-    return OK
+    uid = test.dut.uid_hex()
+    test.report("[*] line Sensor (DUT) UID: ", uid)
+    uid = test.tu.uid_hex()
+    test.report("[*] line Sensor (TU)  UID: ", uid)
     
-    
+def uart_test():
+    return test.dut.uart_test()==1
 
 def neopixel_test():
-    dut.led_mode(dut.LEDS_OFF)
+    test.dut.led_mode(test.dut.LEDS_OFF)
     for i in range(9):
-        dut.neopixel(i,30,0,0)
+        test.dut.neopixel(i,30,0,0)
         sleep_ms(50)
     sleep_ms(200)
     for i in range(9):
-        dut.neopixel(i,0,30,0)
+        test.dut.neopixel(i,0,30,0)
         sleep_ms(50)
     sleep_ms(200)
     for i in range(9):
-        dut.neopixel(i,0,0,30)
+        test.dut.neopixel(i,0,0,30)
         sleep_ms(50)
     sleep_ms(200)
     for i in range(9):
-        dut.neopixel(i,0,0,0)
+        test.dut.neopixel(i,0,0,0)
         sleep_ms(30)
     #dut.led_mode(dut.LEDS_VALUES)
 
 
 
-def test_gpio_dir(pin_in,pin_out):
-    dut.serial_disable()
-    dut.gpio_in(pin_in)
-    dut.gpio_out(pin_out,0)
-    sleep_ms(100)
-    in0 = dut.gpio_in(pin_in)
-    dut.gpio_out(pin_out,1)
-    sleep_ms(100)
-    in1 = dut.gpio_in(pin_in)
-    dut.serial_enable()
-    dut.set_debug(4)
-    return (in0,in1)
+
     
 def _gpio_mark(result):
     """
@@ -120,49 +255,35 @@ def _center(text, width):
 def _print_pin_box(pin, mark, result):
     width = 13
 
-    print("+" + "-" * width + "+")
-    print("|" + _center("PIN {}".format(pin), width) + "|")
-    print("|" + _center(mark, width) + "|")
-    print("|" + _center(str(result), width) + "|")
-    print("+" + "-" * width + "+")
+    test.report("+" + "-" * width + "+")
+    test.report("|" + _center("PIN {}".format(pin), width) + "|")
+    test.report("|" + _center(mark, width) + "|")
+    test.report("|" + _center(str(result), width) + "|")
+    test.report("+" + "-" * width + "+")
 
 
-def test_gpio_report():
+def test_uart_report():
     """
-    Tests both directions.
+    Tests uart pins
 
-    test_gpio_dir(1, 0):
-        pin 0 is output
-        pin 1 is input
-
-    test_gpio_dir(0, 1):
-        pin 1 is output
-        pin 0 is input
+    test_uart() command sends a short uremote frame from TX.
+    using a connection cable, the received frame is checked on RX:
+        True: when succesfull
     """
 
-    print("[.] Testing GPIO pins")
+    test.report("[.] Testing UART")
 
-    pin0_result = test_gpio_dir(1, 0)   # output pin 0, input pin 1
-    pin1_result = test_gpio_dir(0, 1)   # output pin 1, input pin 0
+    uart_result = uart_test()
 
-    pin0_mark = _gpio_mark(pin0_result)
-    pin1_mark = _gpio_mark(pin1_result)
+    test.report("[?] Expected result: True")
+    
+    test.report("[.] UART test", uart_result == 1)
 
-    print("[*] Expected result per pin: (0, 1)")
-    print("[*] O = OK, L = LOW failed, H = HIGH failed, LH = both failed")
-    print("")
-
-    _print_pin_box("Rx", pin0_mark, pin0_result)
-    print("       ||")
-    _print_pin_box("Tx", pin1_mark, pin1_result)
-
-    print("")
-
-    if pin0_mark == "OK" and pin1_mark == "OK":
-        print("[+] GPIO test OK")
+    if uart_result == 1 :
+        test.report("[+] UART test OK")
         return True
     else:
-        print("[x] GPIO test failed")
+        test.report("[x] UART test failed")
         return False
 
 
@@ -276,15 +397,15 @@ def print_dut_ascii(
     emitter_row += "|"
     receiver_row += "|"
 
-    print("\r\n\r\n[*] DUT optical test")
-    print("[*] O = OK, * = FAIL")
-    print("[*] pass condition: OFF > {}, ON < {}".format(255 - limit, limit))
-    print(border)
-    print(emitter_row)
-    print(border)
-    print(receiver_row)
-    print(border)
-    print(index_row)
+    test.report("\r\n\r\n[*] DUT optical test")
+    test.report("[*] O = OK, * = FAIL")
+    test.report("[*] pass condition: OFF > {}, ON < {}".format(255 - limit, limit))
+    test.report(border)
+    test.report(emitter_row)
+    test.report(border)
+    test.report(receiver_row)
+    test.report(border)
+    test.report(index_row)
     if '*' in dut_emitter_marks or '*' in dut_receiver_marks:
         return False
     else:
@@ -293,41 +414,41 @@ def print_dut_ascii(
 # Check IR sensors
 # tu IR off
 def test_sensors():
-    dut.ir_power(False)
-    tu.ir_power(False)
+    test.dut.ir_power(False)
+    test.tu.ir_power(False)
     sleep_ms(50)
 
     #dut.led_mode(dut.LEDS_VALUES)
     #tu.led_mode(tu.LEDS_VALUES)
 
-    print("[.] Measuring DUT with IR emitter TU off")
-    dut_with_tu_off = measure_avg(dut, N_MEASURE)
-    print("[*] values DUT: ", dut_with_tu_off)
+    test.report("[.] Measuring DUT with IR emitter TU off")
+    dut_with_tu_off = measure_avg(test.dut, N_MEASURE)
+    test.report("[*] values DUT: ", dut_with_tu_off)
 
-    tu.ir_power(True)
+    test.tu.ir_power(True)
     sleep_ms(100)
 
-    print("[.] Measuring DUT with IR emitter TU on")
-    dut_with_tu_on = measure_avg(dut, N_MEASURE)
-    print("[*] values DUT: ", dut_with_tu_on)
+    test.report("[.] Measuring DUT with IR emitter TU on")
+    dut_with_tu_on = measure_avg(test.dut, N_MEASURE)
+    test.report("[*] values DUT: ", dut_with_tu_on)
 
-    dut.ir_power(False)
-    tu.ir_power(False)
+    test.dut.ir_power(False)
+    test.tu.ir_power(False)
     sleep_ms(100)
 
-    print("[.] Measuring TU with IR emitter DUT off")
-    tu_with_dut_off = measure_avg(tu, N_MEASURE)
-    print("[*] values TU:  ", tu_with_dut_off)
+    test.report("[.] Measuring TU with IR emitter DUT off")
+    tu_with_dut_off = measure_avg(test.tu, N_MEASURE)
+    test.report("[*] values TU:  ", tu_with_dut_off)
 
-    dut.ir_power(True)
+    test.dut.ir_power(True)
     sleep_ms(100)
 
-    print("[.] Measuring TU with IR emitter DUT on")
-    tu_with_dut_on = measure_avg(tu, N_MEASURE)
-    print("[*] values TU:  ", tu_with_dut_on)
+    test.report("[.] Measuring TU with IR emitter DUT on")
+    tu_with_dut_on = measure_avg(test.tu, N_MEASURE)
+    test.report("[*] values TU:  ", tu_with_dut_on)
 
-    dut.ir_power(False)
-    tu.ir_power(False)
+    test.dut.ir_power(False)
+    test.tu.ir_power(False)
 
     OK = print_dut_ascii(
         dut_rx_with_tu_off=dut_with_tu_off,
@@ -339,47 +460,60 @@ def test_sensors():
     )
     return OK
 
+def run_production_test():
+    global test
 
-OK=True
-np[0]=(0,0,0)
-np.write()
-print("=======================================================\r\n")
-print('[*] Test procedure started\r\n')
-sleep_ms(100)
-tu.led_mode(tu.LEDS_OFF)
-if check_i2c():
-    neopixel_test()
-    print("[*] I2C connections OK\r\n\r\n")
-    get_uid()
-    dut.neopixel(0,0,40,0)
-    print("\r\n\r\n")
-    OK = test_gpio_report()
-    ALL_OK = ALL_OK & OK
-    if OK:
-        dut.neopixel(1,0,40,0)
+    test = ProductionTest()
+    ok = True
+    all_ok = True
+    test.np[0] = (0, 0, 0)
+    test.np.write()
+    test.report("\r\n=======================================================")
+    test.report("[*] Test procedure started\r\n")
+    sleep_ms(100)
+
+    if test.check_i2c():
+        test.initialize_devices()
+        test.tu.led_mode(test.tu.LEDS_OFF)
+        neopixel_test()
+        test.report("[*] I2C connections OK\r\n\r\n")
+        get_uid()
+        test.dut.neopixel(0, 0, 40, 0)
+        test.report("\r\n")
+        ok = test_uart_report()
+        all_ok = all_ok & ok
+        if ok:
+            test.dut.neopixel(1, 0, 40, 0)
+        else:
+            test.dut.neopixel(1, 40, 0, 0)
+        test.report("\r\n")
+        ok = test_sensors()
+        all_ok = all_ok & ok
+        # dut.led_mode(dut.LEDS_OFF)
+        if ok:
+            test.dut.neopixel(2, 0, 40, 0)
+        else:
+            test.dut.neopixel(2, 40, 0, 0)
+        if all_ok:
+            test.report("[+] Test result: PASS")
+            test.np[0] = (0, 50, 0)
+            test.np.write()
+        else:
+            test.report("[x] Test result: FAIL")
+            test.np[0] = (50, 0, 0)
+            test.np.write()
+        test.report("\r\n=======================================================\r\n")
     else:
-        dut.neopixel(1,40,0,0)
-    print("\r\n\r\n")
-    OK = test_sensors()
-    ALL_OK = ALL_OK & OK
-    #dut.led_mode(dut.LEDS_OFF)
-    if OK:
-        dut.neopixel(2,0,40,0)
-    else:
-        dut.neopixel(2,40,0,0)
-    if ALL_OK:
-        np[0]=(0,50,0)
-        np.write()
-    else:
-        np[0]=(50,0,0)
-        np.write()
-    print("\r\n=======================================================\r\n")
-else:
-    print("[!] Test aborted")
-    while 1:
-        np[0]=(50,0,0)
-        np.write()
-        sleep_ms(300)
-        np[0]=(0,0,0)
-        np.write()
-        sleep_ms(300)
+        test.report("[!] Test aborted")
+        test.report("[x] Test result: FAIL")
+        while True:
+            test.np[0] = (50, 0, 0)
+            test.np.write()
+            sleep_ms(300)
+            test.np[0] = (0, 0, 0)
+            test.np.write()
+            sleep_ms(300)
+
+
+if not service_log_requests():
+    run_production_test()

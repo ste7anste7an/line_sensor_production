@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LMS production-test log</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      background: #0b1120;
+      color: #e5edf8;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at top left, #143d52 0, transparent 42%),
+        #0b1120;
+    }
+
+    main {
+      width: min(720px, calc(100% - 32px));
+      padding: 28px;
+      border: 1px solid #28445d;
+      border-radius: 18px;
+      background: rgba(12, 25, 42, 0.94);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.5rem, 4vw, 2.2rem);
+    }
+
+    p {
+      color: #aebed0;
+      line-height: 1.55;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 22px 0;
+    }
+
+    button {
+      padding: 11px 18px;
+      border: 0;
+      border-radius: 10px;
+      background: #38bdf8;
+      color: #062337;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      cursor: default;
+      opacity: 0.55;
+    }
+
+    #delete-log {
+      background: #fb7185;
+      color: #3f0712;
+    }
+
+    #status {
+      color: #7dd3fc;
+      font-weight: 650;
+    }
+
+    pre {
+      box-sizing: border-box;
+      min-height: 220px;
+      max-height: 48vh;
+      overflow: auto;
+      margin: 0;
+      padding: 16px;
+      border-radius: 12px;
+      background: #050a12;
+      color: #b9f6ca;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    small {
+      display: block;
+      margin-top: 14px;
+      color: #8193a8;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>LMS test-log downloader</h1>
+    <p>
+      Connect the ESP32 over USB. When it announces that its log is ready,
+      this page requests the complete log and enables the Save button.
+    </p>
+
+    <div class="controls">
+      <button id="connect">Connect ESP32</button>
+      <button id="disconnect" disabled>Disconnect</button>
+      <button id="save" disabled>Save last log as…</button>
+      <button id="delete-log" disabled>Delete ESP log</button>
+      <span id="status" role="status">Waiting for a serial connection</span>
+    </div>
+
+    <pre id="terminal" aria-label="Serial activity"></pre>
+    <small>
+      Serial access starts only after you press Connect ESP32. Reset the ESP32
+      after connecting if its startup announcement has already passed.
+    </small>
+  </main>
+
+  <script>
+    const READY = "LMS_LOG_READY";
+    const REQUEST = "DOWNLOAD_LOG\n";
+    const DELETE_REQUEST = "DELETE_LOG\n";
+    const BEGIN = "LMS_LOG_BEGIN";
+    const END = "LMS_LOG_END";
+    const DELETED = "LMS_LOG_DELETED";
+    const DELETE_ERROR = "LMS_LOG_DELETE_ERROR";
+
+    const connectButton = document.querySelector("#connect");
+    const disconnectButton = document.querySelector("#disconnect");
+    const saveButton = document.querySelector("#save");
+    const deleteButton = document.querySelector("#delete-log");
+    const statusElement = document.querySelector("#status");
+    const terminal = document.querySelector("#terminal");
+    const decoder = new TextDecoder();
+    const encoder = new TextEncoder();
+
+    let port = null;
+    let activeReader = null;
+    let opening = false;
+    let disconnecting = false;
+    let receiveBuffer = "";
+    let requestSent = false;
+    let downloading = false;
+    let logLines = [];
+    let lastLogContents = "";
+    let lastLogFilename = "lms-test-log.txt";
+
+    function setStatus(message) {
+      statusElement.textContent = message;
+    }
+
+    function showLine(line) {
+      terminal.textContent += `${line}\n`;
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    async function sendRequest() {
+      if (!port?.writable) return;
+      const writer = port.writable.getWriter();
+      try {
+        await writer.write(encoder.encode(REQUEST));
+        setStatus("Downloading log…");
+      } finally {
+        writer.releaseLock();
+      }
+    }
+
+    async function deleteEspLog() {
+      if (!port?.writable) return;
+      if (!window.confirm("Permanently delete test_log.txt from the ESP32?")) {
+        return;
+      }
+
+      deleteButton.disabled = true;
+      const writer = port.writable.getWriter();
+      try {
+        await writer.write(encoder.encode(DELETE_REQUEST));
+        setStatus("Deleting ESP32 log…");
+      } catch (error) {
+        deleteButton.disabled = false;
+        setStatus(`Delete request failed: ${error.message}`);
+      } finally {
+        writer.releaseLock();
+      }
+    }
+
+    function downloadFile(contents, filename) {
+      const blob = new Blob([contents], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+      return blob.size;
+    }
+
+    function receiveLog() {
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+      lastLogContents = logLines.join("\n").replace(/^\n/, "") + "\n";
+      lastLogFilename = `lms-test-log-${stamp}.txt`;
+      const size = new Blob(
+        [lastLogContents],
+        { type: "text/plain;charset=utf-8" }
+      ).size;
+      saveButton.disabled = false;
+      deleteButton.disabled = false;
+      setStatus(`Received ${size} bytes; click Save last log as…`);
+      logLines = [];
+    }
+
+    async function saveLastLog() {
+      if (!lastLogContents) return;
+
+      if ("showSaveFilePicker" in window) {
+        try {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: lastLogFilename,
+            types: [{
+              description: "Text log",
+              accept: { "text/plain": [".txt", ".log"] }
+            }]
+          });
+          const writable = await handle.createWritable();
+          await writable.write(lastLogContents);
+          await writable.close();
+          setStatus(`Saved ${lastLogFilename}`);
+          return;
+        } catch (error) {
+          if (error.name === "AbortError") return;
+          showLine(`[save error] ${error.message}`);
+        }
+      }
+
+      const size = downloadFile(lastLogContents, lastLogFilename);
+      setStatus(`Saved ${size} bytes through browser downloads`);
+    }
+
+    async function handleLine(rawLine) {
+      const line = rawLine.replace(/\r$/, "");
+      showLine(line);
+
+      if (line.trim() === READY && !requestSent) {
+        requestSent = true;
+        await sendRequest();
+      } else if (line.trim() === BEGIN) {
+        downloading = true;
+        logLines = [];
+      } else if (line.trim() === END && downloading) {
+        downloading = false;
+        receiveLog();
+      } else if (line.trim() === DELETED) {
+        deleteButton.disabled = true;
+        setStatus("ESP32 log deleted");
+      } else if (line.trim().startsWith(DELETE_ERROR)) {
+        deleteButton.disabled = false;
+        setStatus("ESP32 log could not be deleted");
+      } else if (downloading) {
+        logLines.push(line);
+      }
+    }
+
+    async function readSerial(currentPort) {
+      const reader = currentPort.readable.getReader();
+      activeReader = reader;
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          receiveBuffer += decoder.decode(value, { stream: true });
+
+          let newline;
+          while ((newline = receiveBuffer.indexOf("\n")) >= 0) {
+            const line = receiveBuffer.slice(0, newline);
+            receiveBuffer = receiveBuffer.slice(newline + 1);
+            await handleLine(line);
+          }
+        }
+      } catch (error) {
+        showLine(`[serial error] ${error.message}`);
+      } finally {
+        reader.releaseLock();
+        if (activeReader === reader) activeReader = null;
+
+        if (!disconnecting) {
+          try {
+            await currentPort.close();
+          } catch (_) {
+            // A physically disconnected serial port may already be closed.
+          }
+          if (port === currentPort) port = null;
+          connectButton.disabled = false;
+          disconnectButton.disabled = true;
+          deleteButton.disabled = true;
+          setStatus("Disconnected");
+        }
+      }
+    }
+
+    async function openPort(selectedPort) {
+      if (opening || port) return;
+      opening = true;
+      connectButton.disabled = true;
+      try {
+        await selectedPort.open({ baudRate: 115200 });
+        port = selectedPort;
+        receiveBuffer = "";
+        requestSent = false;
+        terminal.textContent = "";
+        setStatus("Connected; waiting for ESP32…");
+        disconnectButton.disabled = false;
+        deleteButton.disabled = true;
+        readSerial(selectedPort);
+      } catch (error) {
+        connectButton.disabled = false;
+        disconnectButton.disabled = true;
+        deleteButton.disabled = true;
+        setStatus(`Connection failed: ${error.message}`);
+      } finally {
+        opening = false;
+      }
+    }
+
+    connectButton.addEventListener("click", async () => {
+      try {
+        const selectedPort = await navigator.serial.requestPort();
+        await openPort(selectedPort);
+      } catch (error) {
+        if (error.name !== "NotFoundError") {
+          setStatus(`Connection failed: ${error.message}`);
+        }
+      }
+    });
+
+    async function disconnectPort() {
+      if (!port || disconnecting) return;
+
+      const currentPort = port;
+      disconnecting = true;
+      disconnectButton.disabled = true;
+      let disconnectError = null;
+      try {
+        if (activeReader) {
+          try {
+            await activeReader.cancel();
+          } catch (error) {
+            disconnectError = error;
+          }
+        }
+        try {
+          await currentPort.close();
+        } catch (error) {
+          disconnectError = disconnectError || error;
+        }
+
+        if (disconnectError) throw disconnectError;
+        setStatus("Disconnected");
+      } catch (error) {
+        setStatus(`Disconnect failed: ${error.message}`);
+      } finally {
+        if (port === currentPort) port = null;
+        activeReader = null;
+        disconnecting = false;
+        connectButton.disabled = false;
+        deleteButton.disabled = true;
+      }
+    }
+
+    disconnectButton.addEventListener("click", disconnectPort);
+    saveButton.addEventListener("click", saveLastLog);
+    deleteButton.addEventListener("click", deleteEspLog);
+
+    if (!("serial" in navigator)) {
+      connectButton.disabled = true;
+      setStatus("Web Serial requires Chrome or Edge on HTTPS or localhost");
+    }
+  </script>
+</body>
+</html>
