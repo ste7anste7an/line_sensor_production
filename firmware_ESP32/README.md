@@ -1,6 +1,6 @@
 # Testfirmware for LMS-ESP32
 
-This is the firmware that performs thests with two connected Line Sensor boards. 
+This is the firmware that performs tests with two connected Line Sensor boards. 
 The folowing tests are performed:
 
 0 - Scanning the Neopixel LEDs in colors Red, Green and Blue
@@ -9,7 +9,7 @@ The folowing tests are performed:
 3 - Do a measurement of the IR sensors and IR emitters of the Device Under Test.
 
 
-The progress of tests 1, 2 and 3 is mindicated by LEDS S1, S2, and S3. When the tests passes, the LEDS become green. On failure they will turn RED.
+The progress of tests 1, 2 and 3 is indicated by LEDS S1, S2, and S3. When the tests passes, the LEDS become green. On failure they will turn RED.
 
 ## Serial output
 The test report is sent live over the LMS-ESP32 USB serial console. Connect a

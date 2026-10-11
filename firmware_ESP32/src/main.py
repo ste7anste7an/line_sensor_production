@@ -316,17 +316,11 @@ def measure_avg(dev, nr):
         sleep_ms(20)
     return vector_div(avg, cnt)
     
-
 PASS_LIMIT = 60
-
 
 def _status_marks(values, limit=PASS_LIMIT):
     # O = OK/pass, * = fail
     return ["O" if v < limit else "*" for v in values]
-
-
-PASS_LIMIT = 40
-
 
 def _pass_off_on(off_value, on_value, limit=PASS_LIMIT):
     """
