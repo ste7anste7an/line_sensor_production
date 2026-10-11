@@ -179,3 +179,11 @@ Expected results:
 | **RED**       | One of the tests failed          |
 
 If any status LED turns red, the corresponding test has failed and the DUT should be investigated.
+
+## Logging test reports
+Test reports are logged in the flash memory of the LMS-ESP32. The test reports can be extracted and save to a file using this web-based dashboard:
+
+[https://firmware.ste7an.nl/testreport](https://firmware.ste7an.nl/testreport/)
+
+Connect the LMS-ESP32 to the USB of the PC. Click 'Connect ESP32' and click the reset button on the LMS-ESP32. The test reports are loaded in the GUI and canbe saved by clicking 'Save last log as ...'. 
+The stored test reports can be deleted by clicking 'Delete ESP Log'.
