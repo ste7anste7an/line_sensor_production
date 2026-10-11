@@ -6,7 +6,7 @@
 
 Perform these steps once before testing a batch of DUTs:
 
-* Flash `CH32_TU_line_sensor_i2c_0x34.bin` to the **Test Unit (TU)**.
+* Flash `CH32_TU_line_sensor_0x34_v5_7.bin` to the **Test Unit (TU)**.
 * Flash `ESP32_line_sensor_test.bin` to the **LMS-ESP32v2**.
 * Prepare a **10 kΩ resistor** with two female DuPont connectors.
 * Connect the TU to the LMS-ESP32v2 test setup.
@@ -16,7 +16,7 @@ Perform these steps once before testing a batch of DUTs:
 
 Repeat the following steps for every new Device Under Test (DUT):
 
-1. Flash `CH32_production_line_sensor_i2c.bin` to the DUT.
+1. Flash `CH32_DUT_line_sensor_v5_7.bin` to the DUT.
 2. Verify USB operation, buttons, RGB LEDs, and the 3.3 V supply.
 3. Mount the DUT opposite the TU with the IR sensors facing each other (approximately 10 mm spacing).
 4. Connect one Qwiic connector of the DUT to the LMS-ESP32v2.
@@ -72,8 +72,8 @@ This verifies the complete IR sensing system without requiring external test equ
 
 2. Download the following firmware files from this repository:
 
-   * `CH32_TU_line_sensor_i2c_0x34.bin`
-   * `CH32_production_line_sensor_i2c.bin`
+   * `CH32_TU_line_sensor_0x34_v5_7.bin`
+   * `CH32_DUT_line_sensor_v5_7.bin`
    * `ESP32_line_sensor_test.bin`
 
 3. Flash the **Test Unit (TU)**.
@@ -82,7 +82,7 @@ This verifies the complete IR sensing system without requiring external test equ
 
    b. Start **WCHISPTool** and open:
 
-   `CH32_TU_line_sensor_i2c_0x34.bin`
+   `CH32_TU_line_sensor_0x34_v5_7.bin`
 
    c. While holding the **BOOT/CAL** button, press **RESET**.
 
@@ -114,19 +114,21 @@ This verifies the complete IR sensing system without requiring external test equ
 
 4. Verify that the USB device appears in WCHISPTool. This confirms correct USB operation and button functionality.
 
-5. Flash:
+5. Select 'Clear CodeFlash'
 
-   `CH32_production_line_sensor_i2c.bin`
+6. Flash:
 
-6. Verify that the first eight RGB LEDs perform three complete color-scanning cycles.
+   `CH32_TU_line_sensor_0x34_v5_7.bin`
 
-7. Press the **BOOT/CAL** button.
+7. Verify that the first eight RGB LEDs perform three complete color-scanning cycles (Blue).
 
-8. Verify that the **CALIBRATE** LED (LED 9) flashes blue and turns green after a few seconds.
+8. Press the **BOOT/CAL** button.
 
-9. Measure the voltage between **3V3** and **GND** on the 2×3 header. The measured voltage should be approximately **3.3 V**.
+9. Verify that the **CALIBRATE** LED (LED 9) flashes blue and turns green after a few seconds.
 
-10. Disconnect the USB cable.
+10. Measure the voltage between **3V3** and **GND** on the 2×3 header. The measured voltage should be approximately **3.3 V**.
+
+11. Disconnect the USB cable.
 
 ---
 

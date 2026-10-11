@@ -165,8 +165,8 @@ class ProductionTest:
         return ok
 
     def initialize_devices(self):
-        self.dut = LineSensorI2C(device_addr=self.DUT_ADDRESS, freq=100000)
-        self.tu = LineSensorI2C(device_addr=self.TU_ADDRESS, freq=100000)
+        self.dut = LineSensorI2C(device_addr=self.DUT_ADDRESS, freq=100000, mode=0)
+        self.tu = LineSensorI2C(device_addr=self.TU_ADDRESS, freq=100000, mode=0)
 
 N_MEASURE = 10
 """

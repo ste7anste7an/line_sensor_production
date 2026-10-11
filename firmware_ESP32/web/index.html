@@ -162,7 +162,7 @@
       const writer = port.writable.getWriter();
       try {
         await writer.write(encoder.encode(REQUEST));
-        setStatus("Downloading log…");
+        setStatus("Downloading log...");
       } finally {
         writer.releaseLock();
       }
@@ -178,7 +178,7 @@
       const writer = port.writable.getWriter();
       try {
         await writer.write(encoder.encode(DELETE_REQUEST));
-        setStatus("Deleting ESP32 log…");
+        setStatus("Deleting ESP32 log...");
       } catch (error) {
         deleteButton.disabled = false;
         setStatus(`Delete request failed: ${error.message}`);
@@ -208,7 +208,7 @@
       ).size;
       saveButton.disabled = false;
       deleteButton.disabled = false;
-      setStatus(`Received ${size} bytes; click Save last log as…`);
+      setStatus(`Received ${size} bytes; click Save last log as...`);
       logLines = [];
     }
 
@@ -310,7 +310,7 @@
         receiveBuffer = "";
         requestSent = false;
         terminal.textContent = "";
-        setStatus("Connected; waiting for ESP32…");
+        setStatus("Connected; waiting for ESP32...");
         disconnectButton.disabled = false;
         deleteButton.disabled = true;
         readSerial(selectedPort);
