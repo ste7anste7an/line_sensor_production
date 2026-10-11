@@ -1,5 +1,8 @@
 # Line Sensor Test Protocol
 
+## Testing environment
+Make sure that no direct sunlight reaches the sensors. As that may disturb the test results. If the sensor tests fails (third LED is RED), tr to shield the sensors from external light. and rerun the test.
+
 ## Summary
 
 ### One-time setup
@@ -103,9 +106,6 @@ This verifies the complete IR sensing system without requiring external test equ
 ---
 
 # Test Procedure for Each DUT
-## 0. Testing environment
-Make sure that no direct sunlight reaches the sensors. As that may disturb the test results. If the sensor tests fails (third LED is RED), tr to shield the sensors from external light. and rerun the test.
-
 ## 1. USB and Button Test
 
 1. Connect the DUT to the PC via USB.
