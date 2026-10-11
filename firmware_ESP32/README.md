@@ -54,7 +54,6 @@ Below is the output of a succesful test
 
 ```
 =======================================================
-
 [*] Test procedure started
 
 [.] check i2c devices
@@ -62,39 +61,24 @@ Below is the output of a succesful test
 [*] I2C connections OK
 
 
-[*] line Sensor UID:  CD:AB:35:D4:24:BD:26:3D
-[*] line Sensor UID:  CD:AB:31:D4:24:BD:22:3D
+[*] line Sensor (DUT) UID:  cdab31d424bd223d39e339e3
+[*] line Sensor (TU)  UID:  cdab35d424bd263d39e339e3
 
 
-
-[.] Testing GPIO pins
-[*] Expected result per pin: (0, 1)
-[*] O = OK, L = LOW failed, H = HIGH failed, LH = both failed
-
-+-------------+
-|   PIN Rx    |
-|     OK      |
-|   (0, 1)    |
-+-------------+
-       ||
-+-------------+
-|   PIN Tx    |
-|     OK      |
-|   (0, 1)    |
-+-------------+
-
-[+] GPIO test OK
-
+[.] Testing UART
+[?] Expected result: True
+[.] UART test True
+[+] UART test OK
 
 
 [.] Measuring DUT with IR emitter TU off
-[*] values DUT:  [225, 241, 238, 238, 237, 245, 241, 250]
+[*] values DUT:  [254, 252, 252, 254, 254, 254, 255, 255]
 [.] Measuring DUT with IR emitter TU on
-[*] values DUT:  [8, 8, 8, 9, 8, 8, 7, 7]
+[*] values DUT:  [8, 10, 9, 9, 8, 8, 8, 8]
 [.] Measuring TU with IR emitter DUT off
-[*] values TU:   [228, 226, 218, 231, 233, 225, 235, 250]
+[*] values TU:   [255, 253, 251, 251, 250, 254, 251, 254]
 [.] Measuring TU with IR emitter DUT on
-[*] values TU:   [8, 10, 8, 8, 7, 8, 8, 7]
+[*] values TU:   [9, 8, 8, 9, 9, 9, 7, 7]
 
 
 [*] DUT optical test
@@ -106,6 +90,6 @@ EMIT  | O | O | O | O | O | O | O | O |
 RECV  | O | O | O | O | O | O | O | O |
       +---+---+---+---+---+---+---+---+
         S1  S2  S3  S4  S5  S6  S7  S8 
+[+] Test result: PASS
 
-=======================================================
-```
+=======================================================```
